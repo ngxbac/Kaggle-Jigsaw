@@ -44,9 +44,6 @@ def main():
     n_train = int(0.95 * len(indexs))
     n_valid = len(indexs) - n_train
 
-    # Debug
-    n_train = int(n_train * 0.05)
-
     train_indexs = indexs[:n_train]
     X_train = X[train_indexs]
     X_train_meta = X_meta[train_indexs]
@@ -65,6 +62,11 @@ def main():
         torch.tensor(X_train_meta, dtype=torch.float),
         torch.tensor(np.hstack([y_train, y_train_aux]), dtype=torch.float)
     )
+
+    np.random.seed(Config.seed)
+    torch.manual_seed(Config.seed)
+    torch.cuda.manual_seed(Config.seed)
+    torch.backends.cudnn.deterministic = True
 
     model = BertForTokenClassificationMultiOutput.from_pretrained(
         Config.working_dir,
@@ -90,7 +92,7 @@ def main():
 
     model, optimizer = amp.initialize(model, optimizer, opt_level="O1", verbosity=0)
     model = nn.DataParallel(model)
-    model = model.train()
+    # model = model.train()
 
     tq = tqdm(range(Config.epochs))
     for epoch in tq:
@@ -132,9 +134,11 @@ def main():
 
         tq.set_postfix(avg_loss=avg_loss, avg_accuracy=avg_accuracy)
 
-    os.makedirs(Config.checkpoint, exist_ok=True)
-    output_model_file = os.path.join(Config.checkpoint, "11layer_features.bin")
-    torch.save(model.state_dict(), output_model_file)
+        os.makedirs(Config.checkpoint, exist_ok=True)
+        output_model_file = os.path.join(Config.checkpoint, f"11layer_features_{epoch}.bin")
+        torch.save(model.state_dict(), output_model_file)
+
+    # model.load_state_dict(torch.load(output_model_file))
 
     for param in model.parameters():
         param.requires_grad = False
@@ -144,17 +148,19 @@ def main():
     valid = torch.utils.data.TensorDataset(torch.tensor(X_valid, dtype=torch.long),
                                            torch.tensor(X_valid_meta, dtype=torch.float))
 
-    valid_loader = torch.utils.data.DataLoader(valid, batch_size=32, shuffle=False)
+    valid_loader = torch.utils.data.DataLoader(valid, batch_size=32, shuffle=False, num_workers=4)
 
-    tk0 = tqdm_notebook(valid_loader)
+    tk0 = tqdm(valid_loader, total=len(valid_loader))
     for i, (x_batch, added_fts) in enumerate(tk0):
         pred = model(x_batch.to(device), f=added_fts.to(device), attention_mask=(x_batch > 0).to(device), labels=None)
         valid_preds[i * 32: (i + 1) * 32] = pred[:, 0].detach().cpu().squeeze().numpy()
 
+    np.save('valid_pred.npy', valid_preds)
+
     MODEL_NAME = 'quora_multitarget'
     identity_valid = valid_df[Config.identity_columns].copy()
     predict_valid = torch.sigmoid(torch.tensor(valid_preds)).numpy()
-    total_score = scoring_valid(predict_valid, identity_valid, y_valid,  model_name=MODEL_NAME, save_output = True)
+    total_score = scoring_valid(predict_valid, identity_valid, y_valid[:, 0],  model_name=MODEL_NAME, save_output = True)
     print(total_score)
 
 

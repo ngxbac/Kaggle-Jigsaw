@@ -82,10 +82,8 @@ def add_features(df):
 
 
 @cli.command()
-@click.option('--model_path', type=str)
 @click.option('--csv_file', type=str)
 @click.option('--dataset', type=str)
-@click.option('--max_sequence_length', type=int)
 @click.option('--output_path', type=str)
 def meta_features(
     csv_file,
@@ -109,12 +107,12 @@ def meta_features(
         ss = StandardScaler()
         ss.fit(features)
     else:
-        with open(os.path.join(output_path, f'ss_train.pkl')) as f:
+        with open(os.path.join(output_path, f'ss_train.pkl'), 'rb') as f:
             ss = pickle.load(f)
 
     features = np.array(ss.transform(features), dtype=np.float32)
     if dataset == 'train':
-        with open(os.path.join(output_path, f'ss_{dataset}.pkl')) as f:
+        with open(os.path.join(output_path, f'ss_{dataset}.pkl'), 'wb') as f:
             pickle.dump(ss, f)
     np.save(os.path.join(output_path, f'meta_features_{dataset}.npy'), features)
 

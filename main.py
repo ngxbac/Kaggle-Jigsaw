@@ -14,6 +14,7 @@ from pytorch_pretrained_bert import BertAdam
 from torch.utils.data import TensorDataset
 from sklearn.model_selection import train_test_split
 from utils import *
+import gc
 
 # torch.cuda.set_device(3)
 device = torch.device('cuda')
@@ -56,6 +57,9 @@ def main():
     y_valid = y[valid_indexs]
     y_valid_aux = y_aux[valid_indexs]
     valid_df = df.iloc[valid_indexs]
+
+    del X, X_meta, y, y_aux
+    gc.collect()
 
     train_dataset = TensorDataset(
         torch.tensor(X_train, dtype=torch.long),
@@ -160,7 +164,7 @@ def main():
     MODEL_NAME = 'quora_multitarget'
     identity_valid = valid_df[Config.identity_columns].copy()
     predict_valid = torch.sigmoid(torch.tensor(valid_preds)).numpy()
-    total_score = scoring_valid(predict_valid, identity_valid, y_valid[:, 0],  model_name=MODEL_NAME, save_output = True)
+    total_score = scoring_valid(predict_valid, identity_valid, valid_df.target.values,  model_name=MODEL_NAME, save_output = True)
     print(total_score)
 
 

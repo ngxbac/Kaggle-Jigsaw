@@ -151,7 +151,7 @@ def train_target(
     loss_weight = 1.0 / weights.mean()
 
     y_train_aux = df[aux_columns].values
-    train_y_target = (df['target'].values > 0.5).astype(int)
+    train_y_target = (df['target'].values >= 0.5).astype(int)
     y_train = np.vstack([train_y_target, weights]).T
     np.save(os.path.join(output_path, f'y_train_aux.npy'), y_train_aux)
     np.save(os.path.join(output_path, f'y_train.npy'), y_train)

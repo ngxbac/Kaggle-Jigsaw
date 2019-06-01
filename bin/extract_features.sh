@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-csv_file=/raid/data/kaggle/jigsaw/train.csv
+csv_file=/raid/data/kaggle/jigsaw/test.csv
 output_path=../meta/
-dataset=train
+dataset=test
 
 python preprocessing/extract_data.py meta-features      --csv_file $csv_file \
                                                         --dataset $dataset \

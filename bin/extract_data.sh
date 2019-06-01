@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 model_path=/raid/data/kaggle/jigsaw/bert-pretrained-models/uncased_L-12_H-768_A-12/uncased_L-12_H-768_A-12/
-csv_file=/raid/data/kaggle/jigsaw/train.csv
+csv_file=/raid/data/kaggle/jigsaw/test.csv
 output_path=../meta/
-dataset=train
+dataset=test
 max_sequence_length=220
 
 python preprocessing/extract_data.py extract-data   --model_path $model_path \

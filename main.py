@@ -5,6 +5,7 @@ import click
 
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader
 from apex import amp
 from tqdm import *
 
@@ -27,6 +28,71 @@ def custom_loss_BCE(data, targets, loss_weight):
     return (bce_loss_1 * loss_weight) + bce_loss_2
 
 
+def train(model, optimizer, loader, criterion):
+    avg_loss = 0.
+    avg_accuracy = 0.
+    lossf = None
+    tk0 = tqdm(enumerate(loader), total=len(loader), leave=False)
+    for i, (x_batch, added_fts, y_batch) in tk0:
+        optimizer.zero_grad()
+        all_y_pred = model(
+            x_batch.to(device),
+            f=added_fts.to(device),
+            attention_mask=(x_batch > 0).to(device),
+            labels=None
+        )
+        y_pred = all_y_pred[:, 0]
+
+        loss = criterion(all_y_pred, y_batch.to(device))
+        loss /= Config.accumulation_steps
+
+        with amp.scale_loss(loss, optimizer) as scaled_loss:
+            scaled_loss.backward()
+
+        if (i + 1) % Config.accumulation_steps == 0:  # Wait for several backward steps
+            optimizer.step()  # Now we can do an optimizer step
+            optimizer.zero_grad()
+        if lossf:
+            lossf = 0.98 * lossf + 0.02 * loss.item()
+        else:
+            lossf = loss.item()
+        tk0.set_postfix(loss=lossf)
+
+        avg_loss += loss.item() / len(loader)
+
+        avg_accuracy += torch.mean(
+            ((torch.sigmoid(y_pred) > 0.5) == (y_batch[:, 0] > 0.5).to(device)).to(torch.float)
+        ).item() / len(loader)
+
+    return avg_loss, avg_accuracy
+
+
+def valid(model, loader, valid_df):
+    model.eval()
+    valid_preds = []
+    tk0 = tqdm(loader, total=len(loader))
+    with torch.no_grad():
+        for i, (x_batch, added_fts) in enumerate(tk0):
+            pred = model(x_batch.to(device), f=added_fts.to(device), attention_mask=(x_batch > 0).to(device), labels=None)
+            pred = pred[:, 0].detach().cpu().squeeze().numpy()
+            valid_preds.append(pred)
+
+    valid_preds = np.concatenate(valid_preds, axis=0)
+
+    MODEL_NAME = 'quora_multitarget'
+    identity_valid = valid_df[Config.identity_columns].copy()
+    predict_valid = torch.sigmoid(torch.tensor(valid_preds)).numpy()
+    total_score = scoring_valid(
+        predict_valid,
+        identity_valid,
+        valid_df.target.values,
+        model_name=MODEL_NAME,
+        save_output=True
+    )
+
+    return total_score
+
+
 def main():
 
     # Load data
@@ -38,12 +104,11 @@ def main():
     loss_weight = float(loss_weight)
 
     df = pd.read_csv(os.path.join(Config.data_dir, 'train.csv'))
-    print(loss_weight)
 
     np.random.seed(10)
     indexs = np.random.permutation(X.shape[0])
-    n_train = int(0.95 * len(indexs))
-    n_valid = len(indexs) - n_train
+    n_train = int(Config.train_percent * len(indexs))
+    n_valid = int(Config.valid_percent * len(indexs))
 
     train_indexs = indexs[:n_train]
     X_train = X[train_indexs]
@@ -51,7 +116,7 @@ def main():
     y_train = y[train_indexs]
     y_train_aux = y_aux[train_indexs]
 
-    valid_indexs = indexs[n_train:]
+    valid_indexs = indexs[-n_valid:]
     X_valid = X[valid_indexs]
     X_valid_meta = X_meta[valid_indexs]
     y_valid = y[valid_indexs]
@@ -65,6 +130,26 @@ def main():
         torch.tensor(X_train, dtype=torch.long),
         torch.tensor(X_train_meta, dtype=torch.float),
         torch.tensor(np.hstack([y_train, y_train_aux]), dtype=torch.float)
+    )
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=Config.batch_size,
+        shuffle=True,
+        num_workers=8
+    )
+
+    valid_dataset = TensorDataset(
+        torch.tensor(X_valid, dtype=torch.long),
+        torch.tensor(X_valid_meta, dtype=torch.float)
+    )
+
+    valid_loader = DataLoader(
+        valid_dataset,
+        batch_size=32,
+        shuffle=False,
+        num_workers=8,
+        drop_last=False
     )
 
     np.random.seed(Config.seed)
@@ -88,84 +173,32 @@ def main():
     ]
 
     num_train_optimization_steps = int(Config.epochs * len(train_dataset) / Config.batch_size / Config.accumulation_steps)
-
-    optimizer = BertAdam(optimizer_grouped_parameters,
-                         lr=Config.lr,
-                         warmup=0.1,
-                         t_total=num_train_optimization_steps)
+    optimizer = BertAdam(
+        optimizer_grouped_parameters,
+        lr=Config.lr,
+        warmup=0.1,
+        t_total=num_train_optimization_steps
+    )
 
     model, optimizer = amp.initialize(model, optimizer, opt_level="O1", verbosity=0)
     model = nn.DataParallel(model)
-    # model = model.train()
 
-    tq = tqdm(range(Config.epochs))
-    for epoch in tq:
-        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=Config.batch_size, shuffle=True)
-        avg_loss = 0.
-        avg_accuracy = 0.
-        lossf = None
-        tk0 = tqdm(enumerate(train_loader), total=len(train_loader), leave=False)
-        for i, (x_batch, added_fts, y_batch) in tk0:
-            optimizer.zero_grad()
-            all_y_pred = model(
-                x_batch.to(device),
-                f=added_fts.to(device),
-                attention_mask=(x_batch > 0).to(device),
-                labels=None
-            )
-            y_pred = all_y_pred[:, 0]
+    best_score = 0
+    os.makedirs(Config.checkpoint, exist_ok=True)
+    criterion = lambda x, y: custom_loss_BCE(x, y, loss_weight)
+    for epoch in range(Config.epochs):
+        print(f"Epoch: {epoch}")
+        train(model, optimizer, train_loader, criterion)
+        score = valid(model, valid_loader, valid_df)
+        print(f"Epoch {epoch}, score: {score}")
+        if score > best_score:
+            print(f"Score improved from: {best_score} to {score}")
+            best_score = score
+            output_model_file = os.path.join(Config.checkpoint, f"12layer_features_best.bin")
+            torch.save(model.state_dict(), output_model_file)
 
-            loss = custom_loss_BCE(all_y_pred, y_batch.to(device), loss_weight)
-            loss /= Config.accumulation_steps
-
-            with amp.scale_loss(loss, optimizer) as scaled_loss:
-                scaled_loss.backward()
-
-            if (i + 1) % Config.accumulation_steps == 0:  # Wait for several backward steps
-                optimizer.step()  # Now we can do an optimizer step
-                optimizer.zero_grad()
-            if lossf:
-                lossf = 0.98 * lossf + 0.02 * loss.item()
-            else:
-                lossf = loss.item()
-            tk0.set_postfix(loss=lossf)
-
-            avg_loss += loss.item() / len(train_loader)
-
-            avg_accuracy += torch.mean(
-                ((torch.sigmoid(y_pred) > 0.5) == (y_batch[:, 0] > 0.5).to(device)).to(torch.float)).item() / len(
-                train_loader)
-
-        tq.set_postfix(avg_loss=avg_loss, avg_accuracy=avg_accuracy)
-
-        os.makedirs(Config.checkpoint, exist_ok=True)
-        output_model_file = os.path.join(Config.checkpoint, f"11layer_features_{epoch}.bin")
+        output_model_file = os.path.join(Config.checkpoint, f"12layer_features_{epoch}.bin")
         torch.save(model.state_dict(), output_model_file)
-
-    # model.load_state_dict(torch.load(output_model_file))
-
-    for param in model.parameters():
-        param.requires_grad = False
-
-    model.eval()
-    valid_preds = np.zeros((len(X_valid)))
-    valid = torch.utils.data.TensorDataset(torch.tensor(X_valid, dtype=torch.long),
-                                           torch.tensor(X_valid_meta, dtype=torch.float))
-
-    valid_loader = torch.utils.data.DataLoader(valid, batch_size=32, shuffle=False, num_workers=4)
-
-    tk0 = tqdm(valid_loader, total=len(valid_loader))
-    for i, (x_batch, added_fts) in enumerate(tk0):
-        pred = model(x_batch.to(device), f=added_fts.to(device), attention_mask=(x_batch > 0).to(device), labels=None)
-        valid_preds[i * 32: (i + 1) * 32] = pred[:, 0].detach().cpu().squeeze().numpy()
-
-    np.save('valid_pred.npy', valid_preds)
-
-    MODEL_NAME = 'quora_multitarget'
-    identity_valid = valid_df[Config.identity_columns].copy()
-    predict_valid = torch.sigmoid(torch.tensor(valid_preds)).numpy()
-    total_score = scoring_valid(predict_valid, identity_valid, valid_df.target.values,  model_name=MODEL_NAME, save_output = True)
-    print(total_score)
 
 
 if __name__ == '__main__':

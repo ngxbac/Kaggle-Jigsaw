@@ -1,16 +1,19 @@
 
 class Config:
+    experiment = 'baseline'
     max_sequence_length = 220
     lr = 2e-5
     batch_size = 64
     accumulation_steps = 1
+    train_percent = 0.5
+    valid_percent = 0.065
 
     seed = 12345
     epochs = 2
     data_dir = "/raid/data/kaggle/jigsaw/"
     toxicity_column = 'target'
     working_dir = '../meta/'
-    checkpoint = "../checkpoint_2epoch_95data/"
+    checkpoint = f"../checkpoints/{experiment}_{epochs}epoch_{train_percent * 100}train_{valid_percent * 100}/"
 
     aux_columns = ['target', 'severe_toxicity', 'obscene', 'identity_attack', 'insult', 'threat']
     n_aux_targets = len(aux_columns)

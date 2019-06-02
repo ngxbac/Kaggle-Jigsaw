@@ -1,6 +1,7 @@
 
 class Config:
-    experiment = 'baseline'
+    logdir = "/raid/bac/kaggle/logs/jigsaw/"
+    experiment = 'catalyst'
     max_sequence_length = 220
     lr = 2e-5
     batch_size = 64
@@ -13,7 +14,7 @@ class Config:
     data_dir = "/raid/data/kaggle/jigsaw/"
     toxicity_column = 'target'
     working_dir = '../meta/'
-    checkpoint = f"../checkpoints/{experiment}_{epochs}epoch_{train_percent * 100}train_{valid_percent * 100}/"
+    checkpoint = f"{logdir}/{experiment}_{epochs}epoch_{train_percent * 100}train_{valid_percent * 100}/"
 
     aux_columns = ['target', 'severe_toxicity', 'obscene', 'identity_attack', 'insult', 'threat']
     n_aux_targets = len(aux_columns)

@@ -21,13 +21,13 @@ class BertForTokenClassificationMultiOutput(BertPreTrainedModel):
 
         self.apply(self.init_bert_weights)
 
-    def forward(self, input_ids, f, token_type_ids=None, attention_mask=None, labels=None):
+    def forward(self, input_ids, features, token_type_ids=None, attention_mask=None, labels=None):
         _, pooled_output = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
         pooled_output = self.dropout(pooled_output)
 
         # branch1 = F.relu(self.linear1(pooled_output))
         # output1 = pooled_output + branch1
-        added_fts = self.added_dropout(F.relu(self.added_linear(f)))
+        added_fts = self.added_dropout(F.relu(self.added_linear(features)))
 
         output1 = torch.cat([pooled_output, added_fts], 1)
 

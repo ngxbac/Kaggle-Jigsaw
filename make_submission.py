@@ -30,10 +30,10 @@ if __name__ == '__main__':
         num_aux_labels=Config.n_aux_targets
     )
 
-    state_dict = torch.load(os.path.join(Config.checkpoint, "11layer_features_0.bin"))
+    state_dict = torch.load(os.path.join(Config.checkpoint, "checkpoints/best.pth"))["model_state_dict"]
     new_state_dict = {}
     for k, v in state_dict.items():
-        new_state_dict[k[7:]] = v
+        new_state_dict[k] = v
     model.load_state_dict(new_state_dict)
     model = model.to(device)
 
@@ -49,7 +49,7 @@ if __name__ == '__main__':
 
     tk0 = tqdm(valid_loader, total=len(valid_loader))
     for i, (x_batch, added_fts) in enumerate(tk0):
-        pred = model(x_batch.to(device), f=added_fts.to(device), attention_mask=(x_batch > 0).to(device), labels=None)
+        pred = model(x_batch.to(device), features=added_fts.to(device), attention_mask=(x_batch > 0).to(device), labels=None)
         valid_preds[i * 32: (i + 1) * 32] = pred[:, 0].detach().cpu().squeeze().numpy()
 
     valid_preds = torch.sigmoid(torch.tensor(valid_preds)).numpy().ravel()
@@ -57,4 +57,4 @@ if __name__ == '__main__':
         'id': test_df['id'],
         'prediction': valid_preds
     })
-    submission.to_csv('submission_2epoch_95data_0.csv', index=False)
+    submission.to_csv('submission_2epoch_openai_adam.csv', index=False)

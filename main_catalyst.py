@@ -1,5 +1,5 @@
 from models import BertForTokenClassificationMultiOutput
-from pytorch_pretrained_bert import BertAdam
+from pytorch_pretrained_bert import BertAdam, OpenAIAdam
 from torch.utils.data import TensorDataset
 from sklearn.model_selection import train_test_split
 from utils import *
@@ -45,6 +45,7 @@ if __name__ == '__main__':
         optimizer_grouped_parameters,
         lr=Config.lr,
         warmup=0.1,
+        # schedule='warmup_constant',
         t_total=num_train_optimization_steps
     )
 

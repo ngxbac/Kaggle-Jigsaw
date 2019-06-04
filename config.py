@@ -1,10 +1,10 @@
 
 class Config:
     logdir = "/raid/bac/kaggle/logs/jigsaw/"
-    experiment = 'openai_adam_bs128'
+    experiment = 'balance_loss'
     max_sequence_length = 220
     lr = 2e-5
-    batch_size = 128
+    batch_size = 64
     accumulation_steps = 1
     train_percent = 0.95
     valid_percent = 0.05

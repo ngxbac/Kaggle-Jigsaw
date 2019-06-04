@@ -11,4 +11,4 @@ class CustomLoss(nn.Module):
     def forward(self, output_bin, target_bin, weight_bin, output_aux, target_aux):
         bin_loss = self.bin_loss(weight=weight_bin)(output_bin, target_bin)
         aux_loss = self.aux_loss()(output_aux, target_aux)
-        return self.loss_weight * bin_loss + aux_loss
+        return 0.5 * bin_loss + 0.5 * aux_loss

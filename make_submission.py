@@ -20,12 +20,12 @@ device = torch.device('cuda')
 
 
 if __name__ == '__main__':
-    X = np.load(os.path.join(Config.working_dir, 'sequence_test.npy'))
-    X_meta = np.load(os.path.join(Config.working_dir, 'meta_features_test.npy'))
+    X = np.load(os.path.join(Config.features, 'sequence_test.npy'))
+    X_meta = np.load(os.path.join(Config.features, 'meta_features_test.npy'))
     test_df = pd.read_csv(os.path.join(Config.data_dir, "test.csv"))
 
     model = BertForTokenClassificationMultiOutput.from_pretrained(
-        Config.working_dir,
+        Config.features,
         cache_dir=None,
         num_aux_labels=Config.n_aux_targets
     )
@@ -57,4 +57,4 @@ if __name__ == '__main__':
         'id': test_df['id'],
         'prediction': valid_preds
     })
-    submission.to_csv('submission_2epoch_openai_adam.csv', index=False)
+    submission.to_csv('submission_2epoch_openai_adam_full.csv', index=False)

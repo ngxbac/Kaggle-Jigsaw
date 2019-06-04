@@ -1,10 +1,10 @@
 
 class Config:
     logdir = "/raid/bac/kaggle/logs/jigsaw/"
-    experiment = 'openai_adam'
+    experiment = 'openai_adam_bs128'
     max_sequence_length = 220
     lr = 2e-5
-    batch_size = 64
+    batch_size = 128
     accumulation_steps = 1
     train_percent = 0.95
     valid_percent = 0.05
@@ -13,7 +13,8 @@ class Config:
     epochs = 2
     data_dir = "/raid/data/kaggle/jigsaw/"
     toxicity_column = 'target'
-    working_dir = '../meta/'
+    bert_weight = "../bert_weight/uncased_L-12_H-768_A-12/"
+    features = '../meta/'
     checkpoint = f"{logdir}/{experiment}_{epochs}epoch_{train_percent * 100}train_{valid_percent * 100}/"
 
     aux_columns = ['target', 'severe_toxicity', 'obscene', 'identity_attack', 'insult', 'threat']

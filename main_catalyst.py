@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     # Model and optimizer
     model = BertForTokenClassificationMultiOutput.from_pretrained(
-        Config.working_dir,
+        Config.bert_weight,
         cache_dir=None,
         num_aux_labels=Config.n_aux_targets
     )
@@ -44,8 +44,7 @@ if __name__ == '__main__':
     optimizer = BertAdam(
         optimizer_grouped_parameters,
         lr=Config.lr,
-        warmup=0.1,
-        # schedule='warmup_constant',
+        warmup=0.01,
         t_total=num_train_optimization_steps
     )
 

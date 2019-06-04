@@ -96,11 +96,11 @@ def valid(model, loader, valid_df):
 def main():
 
     # Load data
-    X = np.load(os.path.join(Config.working_dir, 'sequence_train.npy'))
-    X_meta = np.load(os.path.join(Config.working_dir, 'meta_features_train.npy'))
-    y = np.load(os.path.join(Config.working_dir, 'y_train.npy'))
-    y_aux = np.load(os.path.join(Config.working_dir, 'y_train_aux.npy'))
-    loss_weight = np.load(os.path.join(Config.working_dir, 'loss_weight.npy'))
+    X = np.load(os.path.join(Config.features, 'sequence_train.npy'))
+    X_meta = np.load(os.path.join(Config.features, 'meta_features_train.npy'))
+    y = np.load(os.path.join(Config.features, 'y_train.npy'))
+    y_aux = np.load(os.path.join(Config.features, 'y_train_aux.npy'))
+    loss_weight = np.load(os.path.join(Config.features, 'loss_weight.npy'))
     loss_weight = float(loss_weight)
 
     df = pd.read_csv(os.path.join(Config.data_dir, 'train.csv'))
@@ -158,7 +158,7 @@ def main():
     torch.backends.cudnn.deterministic = True
 
     model = BertForTokenClassificationMultiOutput.from_pretrained(
-        Config.working_dir,
+        Config.features,
         cache_dir=None,
         num_aux_labels=Config.n_aux_targets
     )

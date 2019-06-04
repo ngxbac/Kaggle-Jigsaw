@@ -32,11 +32,11 @@ class JigsawDataset(Dataset):
 
 def get_data_loaders(Config):
     # Load data
-    X = np.load(os.path.join(Config.working_dir, 'sequence_train.npy'))
-    X_meta = np.load(os.path.join(Config.working_dir, 'meta_features_train.npy'))
-    y = np.load(os.path.join(Config.working_dir, 'y_train.npy'))
-    y_aux = np.load(os.path.join(Config.working_dir, 'y_train_aux.npy'))
-    loss_weight = np.load(os.path.join(Config.working_dir, 'loss_weight.npy'))
+    X = np.load(os.path.join(Config.features, 'sequence_train.npy'))
+    X_meta = np.load(os.path.join(Config.features, 'meta_features_train.npy'))
+    y = np.load(os.path.join(Config.features, 'y_train.npy'))
+    y_aux = np.load(os.path.join(Config.features, 'y_train_aux.npy'))
+    loss_weight = np.load(os.path.join(Config.features, 'loss_weight.npy'))
     loss_weight = float(loss_weight)
 
     # print(y.shape)

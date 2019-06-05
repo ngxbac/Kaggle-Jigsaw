@@ -15,7 +15,7 @@ from torch.utils.data import TensorDataset
 from sklearn.model_selection import train_test_split
 from utils import *
 
-torch.cuda.set_device(1)
+torch.cuda.set_device(3)
 device = torch.device('cuda')
 
 
@@ -58,4 +58,4 @@ if __name__ == '__main__':
         'prediction': valid_preds
     })
     os.makedirs('submission', exist_ok=True)
-    submission.to_csv('./submission/balance_loss_epoch1.csv', index=False)
+    submission.to_csv('./submission/balance_loss_all_data_epoch1_seed2411.csv', index=False)

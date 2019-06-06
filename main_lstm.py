@@ -42,9 +42,9 @@ if __name__ == '__main__':
 
     master_params = [p for p in params if p.requires_grad]
     optimizer = Adam(master_params, lr=ConfigLSTM.lr, weight_decay=0.0001)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=0.1)
 
-    identity_valid = valid_df[Config.identity_columns].copy()
+    identity_valid = valid_df[ConfigLSTM.identity_columns].copy()
     target_valid = valid_df.target.values
     auc_callback = AucCallback(
         identity=identity_valid,
@@ -63,8 +63,8 @@ if __name__ == '__main__':
         loaders=loaders,
         main_metric='auc',
         minimize_metric=False,
-        logdir=Config.checkpoint,
-        num_epochs=Config.epochs,
+        logdir=ConfigLSTM.checkpoint,
+        num_epochs=ConfigLSTM.epochs,
         verbose=True,
         # fp16={"opt_level": "O1"},
         callbacks=[auc_callback]

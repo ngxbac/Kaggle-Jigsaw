@@ -30,13 +30,13 @@ class ConfigLSTM:
     logdir = "/raid/bac/kaggle/logs/jigsaw/"
     experiment = 'lstm'
     max_sequence_length = 300
-    lr = 2e-5
+    lr = 0.001
     batch_size = 512
     train_percent = 0.95
     valid_percent = 0.05
 
     seed = 12345
-    epochs = 2
+    epochs = 10
 
     LSTM_UNITS = 256
     DENSE_HIDDEN_UNITS = 4 * LSTM_UNITS + 64

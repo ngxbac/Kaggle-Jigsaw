@@ -108,12 +108,19 @@ class ModelRunner(SupervisedRunner):
         return model, criterion, optimizer, scheduler, device
 
     def predict_batch(self, batch: Mapping[str, Any]):
-        output = self.model(
-            input_ids=batch['X'],
-            features=batch['X_meta'],
-            attention_mask=(batch['X'] > 0),
-            labels=None
-        )
+        if 'length' in batch.keys():
+            output = self.model(
+                x=batch['X'],
+                f=batch['X_meta'],
+                lengths=batch['length']
+            )
+        else:
+            output = self.model(
+                input_ids=batch['X'],
+                features=batch['X_meta'],
+                attention_mask=(batch['X'] > 0),
+                labels=None
+            )
 
         return {
             "output_bin": output[:, :1],

@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn import metrics
-from config import Config
+from config import Config, ConfigLSTM
 import pandas as pd
 
 

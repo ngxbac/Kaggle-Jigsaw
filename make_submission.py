@@ -25,7 +25,7 @@ if __name__ == '__main__':
     test_df = pd.read_csv(os.path.join(Config.data_dir, "test.csv"))
 
     model = BertForTokenClassificationMultiOutput.from_pretrained(
-        Config.features,
+        Config.bert_weight,
         cache_dir=None,
         num_aux_labels=Config.n_aux_targets
     )
@@ -58,4 +58,4 @@ if __name__ == '__main__':
         'prediction': valid_preds
     })
     os.makedirs('submission', exist_ok=True)
-    submission.to_csv('./submission/balance_loss_all_data_epoch1_seed2411.csv', index=False)
+    submission.to_csv('./submission/balance_loss_all_data_epoch1_11layers.csv', index=False)

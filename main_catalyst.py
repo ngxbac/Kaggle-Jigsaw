@@ -10,6 +10,7 @@ import torch
 from losses import CustomLoss
 from callbacks import *
 from runner import ModelRunner
+from catalyst.dl.callbacks.base import OptimizerCallback
 
 np.random.seed(Config.seed)
 torch.manual_seed(Config.seed)
@@ -56,7 +57,7 @@ if __name__ == '__main__':
         identity=identity_valid,
         target=target_valid
     )
-
+    
     # model runner
     runner = ModelRunner()
 

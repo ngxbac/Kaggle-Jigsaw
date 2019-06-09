@@ -20,6 +20,7 @@ device = torch.device('cuda')
 
 
 if __name__ == '__main__':
+    print(Config.checkpoint)
     X = np.load(os.path.join(Config.features, 'sequence_test.npy'))
     X_meta = np.load(os.path.join(Config.features, 'meta_features_test.npy'))
     test_df = pd.read_csv(os.path.join(Config.data_dir, "test.csv"))
@@ -58,4 +59,4 @@ if __name__ == '__main__':
         'prediction': valid_preds
     })
     os.makedirs('submission', exist_ok=True)
-    submission.to_csv('./submission/balance_loss_all_data_epoch1_11layers.csv', index=False)
+    submission.to_csv('./submission/11layers_32bs_4accum.csv', index=False)

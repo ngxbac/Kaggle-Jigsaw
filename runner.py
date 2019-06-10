@@ -7,6 +7,7 @@ from catalyst.dl.utils.utils import *
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from config import *
 
 _Model = nn.Module
 _Criterion = nn.Module
@@ -37,7 +38,7 @@ class JigsawExperiment(BaseExperiment):
                         print("Optimization callback!!!")
                         print("Optimization callback!!!")
                         print("Optimization callback!!!")
-                        callbacks.append(value(accumulation_steps=4))
+                        callbacks.append(value(accumulation_steps=Config.accumulation_steps))
                     else:
                         callbacks.append(value())
         return callbacks

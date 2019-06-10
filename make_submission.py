@@ -59,4 +59,4 @@ if __name__ == '__main__':
         'prediction': valid_preds
     })
     os.makedirs('submission', exist_ok=True)
-    submission.to_csv('./submission/11layers_32bs_4accum.csv', index=False)
+    submission.to_csv('./submission/11layers_32bs_8accum.csv', index=False)

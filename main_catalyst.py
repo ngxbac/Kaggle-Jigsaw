@@ -17,7 +17,6 @@ torch.manual_seed(Config.seed)
 torch.cuda.manual_seed(Config.seed)
 torch.backends.cudnn.deterministic = True
 
-
 if __name__ == '__main__':
     # Data loaders
     train_loader, valid_loader, valid_df, loss_weight = get_data_loaders(Config)
@@ -41,7 +40,7 @@ if __name__ == '__main__':
         {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
         {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
     ]
-    num_train_optimization_steps = int(Config.epochs * len(train_loader.dataset) / Config.batch_size / Config.accumulation_steps)
+    num_train_optimization_steps = np.ceil(len(train_loader.dataset) / Config.batch_size / Config.accumulation_steps) * Config.epochs
     optimizer = BertAdam(
         optimizer_grouped_parameters,
         lr=Config.lr,
@@ -57,7 +56,7 @@ if __name__ == '__main__':
         identity=identity_valid,
         target=target_valid
     )
-    
+
     # model runner
     runner = ModelRunner()
 

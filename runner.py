@@ -2,7 +2,7 @@ from typing import Iterable, Any, Mapping, Dict, List, Tuple
 from catalyst.dl.experiments import SupervisedRunner, BaseExperiment
 from catalyst.dl.callbacks import Callback, LossCallback, OptimizerCallback, \
     SchedulerCallback, CheckpointCallback  # noqa F401
-from callbacks import JigsawLossCallback
+from callbacks import JigsawLossCallback, OptimizerCallbackJigsaw
 from catalyst.dl.utils.utils import *
 import torch
 import torch.nn as nn
@@ -22,7 +22,7 @@ class JigsawExperiment(BaseExperiment):
         if not stage.startswith("infer"):
             default_callbacks = [
                 (self._criterion, JigsawLossCallback),
-                (self._optimizer, OptimizerCallback),
+                (self._optimizer, OptimizerCallbackJigsaw),
                 (self._scheduler, SchedulerCallback),
                 ("_default_saver", CheckpointCallback),
             ]

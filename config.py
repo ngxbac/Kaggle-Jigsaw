@@ -1,13 +1,13 @@
 
 class Config:
     logdir = "/raid/bac/kaggle/logs/jigsaw/"
-    experiment = '11layers_fix'
+    experiment = 'test'
     max_sequence_length = 220
     lr = 2e-5
     batch_size = 34
     accumulation_steps = 8
-    train_percent = 1.0
-    valid_percent = 0.05
+    train_percent = 0.01
+    valid_percent = 0.01
 
     seed = 12345
     epochs = 2

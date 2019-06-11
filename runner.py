@@ -22,7 +22,7 @@ class JigsawExperiment(BaseExperiment):
         if not stage.startswith("infer"):
             default_callbacks = [
                 (self._criterion, JigsawLossCallback),
-                (self._optimizer, OptimizerCallbackJigsaw),
+                (self._optimizer, OptimizerCallback),
                 (self._scheduler, SchedulerCallback),
                 ("_default_saver", CheckpointCallback),
             ]

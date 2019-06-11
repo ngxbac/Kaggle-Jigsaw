@@ -44,7 +44,7 @@ def get_data_loaders(Config):
 
     df = pd.read_csv(os.path.join(Config.data_dir, 'train.csv'))
 
-    np.random.seed(10)
+    np.random.seed(Config.seed)
     indexs = np.random.permutation(X.shape[0])
     n_train = int(Config.train_percent * len(indexs))
     n_valid = int(Config.valid_percent * len(indexs))
@@ -90,8 +90,7 @@ def get_data_loaders(Config):
         valid_dataset,
         batch_size=Config.batch_size,
         shuffle=False,
-        num_workers=8,
-        drop_last=False
+        num_workers=8
     )
 
     return train_loader, valid_loader, valid_df, loss_weight

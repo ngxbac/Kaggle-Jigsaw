@@ -1,25 +1,54 @@
 from models import BertForTokenClassificationMultiOutput
-from pytorch_pretrained_bert import BertAdam, OpenAIAdam
-from torch.utils.data import TensorDataset
-from sklearn.model_selection import train_test_split
-from utils import *
-import gc
+from pytorch_pretrained_bert import BertAdam
+import click
 
 from dataset import get_data_loaders
-import torch
 from losses import CustomLoss
 from callbacks import *
 from runner import ModelRunner
-from catalyst.dl.callbacks.base import OptimizerCallback
 
-np.random.seed(Config.seed)
-torch.manual_seed(Config.seed)
-torch.cuda.manual_seed(Config.seed)
-torch.backends.cudnn.deterministic = True
+from config import *
 
-if __name__ == '__main__':
+
+@click.group()
+def cli():
+
+    print("Training bert")
+
+
+@cli.command()
+@click.option('--seed', type=int)
+@click.option('--depth', type=int)
+@click.option('--maxlen', type=int)
+@click.option('--batch_size', type=int)
+@click.option('--accumulation_steps', type=int)
+def train(
+    seed,
+    depth,
+    maxlen,
+    batch_size,
+    accumulation_steps,
+):
+
+    config.seed = seed
+    config.max_sequence_length = maxlen
+    config.batch_size = batch_size
+    config.accumulation_steps = accumulation_steps
+    config.bert_weight = f"../bert_weight/uncased_L-{depth}_H-768_A-12/"
+    config.features = f"../bert_features_{maxlen}/"
+    config.experiment = f"{depth}layers"
+    config.checkpoint = f"{config.logdir}/{config.today}/{config.experiment}_" \
+                        f"{config.batch_size}bs_{config.accumulation_steps}accum_{config.seed}seed_{config.max_sequence_length}/"
+
+    print_config(config)
+
+    np.random.seed(config.seed)
+    torch.manual_seed(config.seed)
+    torch.cuda.manual_seed(config.seed)
+    torch.backends.cudnn.deterministic = True
+
     # Data loaders
-    train_loader, valid_loader, valid_df, loss_weight = get_data_loaders(Config)
+    train_loader, valid_loader, valid_df, loss_weight = get_data_loaders(config)
     loaders = {
         "train": train_loader,
         "valid": valid_loader
@@ -30,9 +59,9 @@ if __name__ == '__main__':
 
     # Model and optimizer
     model = BertForTokenClassificationMultiOutput.from_pretrained(
-        Config.bert_weight,
+        config.bert_weight,
         cache_dir=None,
-        num_aux_labels=Config.n_aux_targets
+        num_aux_labels=config.n_aux_targets
     )
     param_optimizer = list(model.named_parameters())
     no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
@@ -40,17 +69,18 @@ if __name__ == '__main__':
         {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
         {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
     ]
-    num_train_optimization_steps = np.ceil(len(train_loader.dataset) / Config.batch_size / Config.accumulation_steps) * Config.epochs
+    num_train_optimization_steps = np.ceil(
+        len(train_loader.dataset) / config.batch_size / config.accumulation_steps) * config.epochs
     optimizer = BertAdam(
         optimizer_grouped_parameters,
-        lr=Config.lr,
+        lr=config.lr,
         warmup=0.01,
         t_total=num_train_optimization_steps
     )
 
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
 
-    identity_valid = valid_df[Config.identity_columns].copy()
+    identity_valid = valid_df[config.identity_columns].copy()
     target_valid = valid_df.target.values
     auc_callback = AucCallback(
         identity=identity_valid,
@@ -69,9 +99,14 @@ if __name__ == '__main__':
         loaders=loaders,
         main_metric='auc',
         minimize_metric=False,
-        logdir=Config.checkpoint,
-        num_epochs=Config.epochs,
+        logdir=config.checkpoint,
+        num_epochs=config.epochs,
         verbose=True,
         fp16={"opt_level": "O1"},
         callbacks=[auc_callback]
     )
+
+
+if __name__ == '__main__':
+    cli()
+

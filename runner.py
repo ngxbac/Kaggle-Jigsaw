@@ -32,13 +32,7 @@ class JigsawExperiment(BaseExperiment):
                     isinstance(x, value) for x in callbacks)
                 if key is not None and not is_already_present:
                     if key == self._optimizer:
-                        print("Optimization callback!!!")
-                        print("Optimization callback!!!")
-                        print("Optimization callback!!!")
-                        print("Optimization callback!!!")
-                        print("Optimization callback!!!")
-                        print("Optimization callback!!!")
-                        callbacks.append(value(accumulation_steps=Config.accumulation_steps))
+                        callbacks.append(value(accumulation_steps=config.accumulation_steps))
                     else:
                         callbacks.append(value())
         return callbacks

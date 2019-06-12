@@ -14,24 +14,43 @@ from pytorch_pretrained_bert import BertAdam
 from torch.utils.data import TensorDataset
 from sklearn.model_selection import train_test_split
 from utils import *
+from config import *
 
-torch.cuda.set_device(3)
+# torch.cuda.set_device(3)
 device = torch.device('cuda')
 
 
 if __name__ == '__main__':
-    print(Config.checkpoint)
-    X = np.load(os.path.join(Config.features, 'sequence_test.npy'))
-    X_meta = np.load(os.path.join(Config.features, 'meta_features_test.npy'))
-    test_df = pd.read_csv(os.path.join(Config.data_dir, "test.csv"))
+
+    seed = 6037
+    depth = 11
+    maxlen = 220
+    batch_size = 128
+    accumulation_steps = 1
+
+    config.seed = seed
+    config.max_sequence_length = maxlen
+    config.batch_size = batch_size
+    config.accumulation_steps = accumulation_steps
+    config.bert_weight = f"../bert_weight/uncased_L-{depth}_H-768_A-12/"
+    config.features = f"../bert_features_{maxlen}/"
+    config.experiment = f"{depth}layers"
+    config.checkpoint = f"{config.logdir}/{config.today}/{config.experiment}_" \
+                        f"{config.batch_size}bs_{config.accumulation_steps}accum_{config.seed}seed_{config.max_sequence_length}/"
+
+    print_config(config)
+
+    X = np.load(os.path.join(config.features, 'sequence_test.npy'))
+    X_meta = np.load(os.path.join(config.features, 'meta_features_test.npy'))
+    test_df = pd.read_csv(os.path.join(config.data_dir, "test.csv"))
 
     model = BertForTokenClassificationMultiOutput.from_pretrained(
-        Config.bert_weight,
+        config.bert_weight,
         cache_dir=None,
-        num_aux_labels=Config.n_aux_targets
+        num_aux_labels=config.n_aux_targets
     )
 
-    state_dict = torch.load(os.path.join(Config.checkpoint, "checkpoints/best.pth"))["model_state_dict"]
+    state_dict = torch.load(os.path.join(config.checkpoint, "checkpoints/best.pth"))["model_state_dict"]
     new_state_dict = {}
     for k, v in state_dict.items():
         new_state_dict[k] = v
@@ -58,5 +77,5 @@ if __name__ == '__main__':
         'id': test_df['id'],
         'prediction': valid_preds
     })
-    os.makedirs('submission', exist_ok=True)
-    submission.to_csv(f'./submission/{Config.experiment}_{Config.batch_size}bs_{Config.accumulation_steps}accum.csv', index=False)
+    os.makedirs(f'./submission/{config.today}/', exist_ok=True)
+    submission.to_csv(f'./submission/{config.today}/{config.experiment}_"{config.batch_size}bs_{config.accumulation_steps}accum_{config.seed}seed_{config.max_sequence_length}.csv', index=False)

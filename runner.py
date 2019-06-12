@@ -31,7 +31,8 @@ class JigsawExperiment(BaseExperiment):
                 is_already_present = any(
                     isinstance(x, value) for x in callbacks)
                 if key is not None and not is_already_present:
-                    if key == self._optimizer:
+                    if key == self._optimizer and config.use_bug:
+                        print("Using bug as features !!!")
                         callbacks.append(value(accumulation_steps=config.accumulation_steps))
                     else:
                         callbacks.append(value())

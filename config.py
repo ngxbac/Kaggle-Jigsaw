@@ -2,7 +2,7 @@
 class Config:
 
     def __init__(self):
-        self.today = "190611"
+        self.today = "190612"
         self.logdir = "/raid/bac/kaggle/logs/jigsaw/"
         self.experiment = ""
         self.max_sequence_length = 220
@@ -24,6 +24,8 @@ class Config:
             'male', 'female', 'homosexual_gay_or_lesbian', 'christian', 'jewish',
             'muslim', 'black', 'white', 'psychiatric_or_mental_illness'
         ]
+
+        self.use_bug = False
 
 
 def print_config(Config):

@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn import metrics
-from config import Config
+from config import config
 import pandas as pd
 
 
@@ -73,7 +73,7 @@ def convert_dataframe_to_bool(df, list_cols):
 
 
 def calculate_overall_auc(df, model_name):
-    true_labels = df[Config.toxicity_column]
+    true_labels = df[config.toxicity_column]
     predicted_labels = df[model_name]
     return metrics.roc_auc_score(true_labels, predicted_labels)
 
@@ -96,8 +96,8 @@ def scoring_valid(predict, identity_df, target, model_name='test_model', save_ou
     valid_df = identity_df.copy()
     valid_df['target'] = target
     valid_df['quora_multitarget'] = predict
-    valid_df = convert_dataframe_to_bool(valid_df, ['target'] + Config.identity_columns)
-    bias_metrics_df = compute_bias_metrics_for_model(valid_df, Config.identity_columns, 'quora_multitarget', 'target')
+    valid_df = convert_dataframe_to_bool(valid_df, ['target'] + config.identity_columns)
+    bias_metrics_df = compute_bias_metrics_for_model(valid_df, config.identity_columns, 'quora_multitarget', 'target')
 
     if save_output:
         bias_metrics_df.to_csv("z_bias_metrics_df.csv", index=False)

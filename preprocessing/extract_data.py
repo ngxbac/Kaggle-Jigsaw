@@ -5,12 +5,12 @@ import os
 from tqdm import *
 import pickle
 from sklearn.preprocessing import StandardScaler
-from pytorch_pretrained_bert import BertTokenizer
+from pytorch_pretrained_bert import BertTokenizer, GPT2Tokenizer
 
 
 @click.group()
 def cli():
-    print("Extract data to BERT format")
+    print("Extract data to BERT/GPT2 format")
 
 
 def convert_lines(example, max_seq_length, tokenizer):
@@ -23,6 +23,24 @@ def convert_lines(example, max_seq_length, tokenizer):
             tokens_a = tokens_a[:max_seq_length]
             longer += 1
         one_token = tokenizer.convert_tokens_to_ids(["[CLS]"]+tokens_a+["[SEP]"])+[0] * (max_seq_length - len(tokens_a))
+        all_tokens.append(one_token)
+    return np.array(all_tokens)
+
+
+# Converting the lines to opengpt format
+def convert_lines_gpt2(example, max_seq_length, tokenizer):
+    max_seq_length -=2
+    all_tokens = []
+    longer = 0
+    for text in tqdm(example):
+        # import pdb
+        # pdb.set_trace()
+        # text = text.encode('utf-8')
+        tokens_a = tokenizer.tokenize(tokenizer, text)
+        if len(tokens_a)>max_seq_length:
+            tokens_a = tokens_a[:max_seq_length]
+            longer += 1
+        one_token = tokenizer.convert_tokens_to_ids(tokens_a) + [0]*(max_seq_length - len(tokens_a))
         all_tokens.append(one_token)
     return np.array(all_tokens)
 
@@ -48,6 +66,49 @@ def extract_data(
     df['comment_text'] = df['comment_text'].astype(str)
 
     sequences = convert_lines(df["comment_text"].fillna("DUMMY_VALUE"), max_sequence_length, tokenizer)
+    np.save(os.path.join(output_path, f'sequence_{dataset}.npy'), sequences)
+
+
+import sys
+import regex as re
+def tokenize(self, text):
+    """ Tokenize a string. """
+    bpe_tokens = []
+    for token in re.findall(self.pat, text):
+        # token = ''.join(self.byte_encoder[ord(b)] for b in token.encode('utf-8'))
+        if sys.version_info[0] == 2:
+            token = ''.join(self.byte_encoder[ord(b)] for b in token)
+        else:
+            token = ''.join(self.byte_encoder[b] for b in token.encode('utf-8'))
+        bpe_tokens.extend(bpe_token for bpe_token in self.bpe(token).split(' '))
+    return bpe_tokens
+
+
+@cli.command()
+@click.option('--model_path', type=str)
+@click.option('--csv_file', type=str)
+@click.option('--dataset', type=str)
+@click.option('--max_sequence_length', type=int)
+@click.option('--output_path', type=str)
+def extract_data_gpt2(
+    model_path,
+    csv_file,
+    dataset,
+    max_sequence_length,
+    output_path,
+):
+    os.makedirs(output_path, exist_ok=True)
+    df = pd.read_csv(csv_file)
+    tokenizer = GPT2Tokenizer.from_pretrained(model_path, cache_dir=None)
+    tokenizer.tokenize = tokenize
+
+    # Make sure all comment_text values are strings
+    df['comment_text'] = df['comment_text'].astype(str)
+
+    # import pdb
+    # pdb.set_trace()
+
+    sequences = convert_lines_gpt2(df["comment_text"].fillna("DUMMY_VALUE"), max_sequence_length, tokenizer)
     np.save(os.path.join(output_path, f'sequence_{dataset}.npy'), sequences)
 
 

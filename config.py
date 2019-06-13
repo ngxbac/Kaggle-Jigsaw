@@ -16,6 +16,7 @@ class Config:
         self.data_dir = "/raid/data/kaggle/jigsaw/"
         self.toxicity_column = 'target'
         self.bert_weight = "../bert_weight/uncased_L-11_H-768_A-12/"
+        self.gpt2_weight = "../gpt2_weight/"
         self.features = '../meta/'
         self.checkpoint = ""
         self.aux_columns = ['target', 'severe_toxicity', 'obscene', 'identity_attack', 'insult', 'threat']
@@ -34,6 +35,7 @@ def print_config(Config):
     print(f"seed: {Config.seed}")
     print(f"Feature dir: {Config.features}")
     print(f"bert_weight: {Config.bert_weight}")
+    print(f"gpt2_weight: {Config.gpt2_weight}")
     print(f"max_sequence_length: {Config.max_sequence_length}")
     print(f"batch_size: {Config.batch_size}")
     print(f"accumulation_steps: {Config.accumulation_steps}")

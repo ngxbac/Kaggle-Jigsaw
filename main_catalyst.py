@@ -1,4 +1,4 @@
-from models import BertForTokenClassificationMultiOutput
+from models import BertForTokenClassificationMultiOutput, GPT2ClassificationMultioutput
 from pytorch_pretrained_bert import BertAdam
 import click
 
@@ -22,12 +22,14 @@ def cli():
 @click.option('--maxlen', type=int)
 @click.option('--batch_size', type=int)
 @click.option('--accumulation_steps', type=int)
+@click.option('--model_name', type=str, default='bert')
 def train(
     seed,
     depth,
     maxlen,
     batch_size,
     accumulation_steps,
+    model_name
 ):
 
     config.seed = seed
@@ -35,9 +37,12 @@ def train(
     config.batch_size = batch_size
     config.accumulation_steps = accumulation_steps
     config.bert_weight = f"../bert_weight/uncased_L-{depth}_H-768_A-12/"
-    config.features = f"../bert_features_{maxlen}/"
+    if model_name == 'bert':
+        config.features = f"../bert_features_{maxlen}/"
+    else:
+        config.features = f"../features_{maxlen}_gpt/"
     config.experiment = f"{depth}layers"
-    config.checkpoint = f"{config.logdir}/{config.today}/{config.experiment}_" \
+    config.checkpoint = f"{config.logdir}/{config.today}/{model_name}_{config.experiment}_" \
                         f"{config.batch_size}bs_{config.accumulation_steps}accum_{config.seed}seed_{config.max_sequence_length}/"
 
     print_config(config)
@@ -58,11 +63,23 @@ def train(
     criterion = CustomLoss(loss_weight)
 
     # Model and optimizer
-    model = BertForTokenClassificationMultiOutput.from_pretrained(
-        config.bert_weight,
-        cache_dir=None,
-        num_aux_labels=config.n_aux_targets
-    )
+    if model_name == 'bert':
+        print("BERT MODEL")
+        model = BertForTokenClassificationMultiOutput.from_pretrained(
+            config.bert_weight,
+            cache_dir=None,
+            num_aux_labels=config.n_aux_targets
+        )
+    elif model_name == 'gpt2':
+        print("GPT2 MODEL")
+        model = GPT2ClassificationMultioutput.from_pretrained(
+            config.gpt2_weight,
+            cache_dir=None,
+            num_aux_labels=config.n_aux_targets
+        )
+    else:
+        raise ("Model is not implemented")
+
     param_optimizer = list(model.named_parameters())
     no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
     optimizer_grouped_parameters = [

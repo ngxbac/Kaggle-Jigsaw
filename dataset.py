@@ -95,3 +95,66 @@ def get_data_loaders(Config):
 
     return train_loader, valid_loader, valid_df, loss_weight
 
+
+def get_kfold_data_loaders(Config):
+    # Load data
+    X = np.load(os.path.join(Config.features, 'sequence_train.npy'))
+    X_meta = np.load(os.path.join(Config.features, 'meta_features_train.npy'))
+    y = np.load(os.path.join(Config.features, 'y_train.npy'))
+    y_aux = np.load(os.path.join(Config.features, 'y_train_aux.npy'))
+    loss_weight = np.load(os.path.join(Config.features, 'loss_weight.npy'))
+    loss_weight = float(loss_weight)
+
+    # print(y.shape)
+    # print(y_aux.shape)
+
+    df = pd.read_csv(os.path.join(Config.data_dir, 'train.csv'))
+
+    np.random.seed(Config.seed)
+
+    train_indexs = np.load(f'./kfold/train_{Config.fold}.npy')
+    X_train = X[train_indexs]
+    X_train_meta = X_meta[train_indexs]
+    y_train = y[train_indexs]
+    y_train_aux = y_aux[train_indexs]
+
+    valid_indexs = np.load(f'./kfold/valid_{Config.fold}.npy')
+    X_valid = X[valid_indexs]
+    X_valid_meta = X_meta[valid_indexs]
+    y_valid = y[valid_indexs]
+    y_valid_aux = y_aux[valid_indexs]
+    valid_df = df.iloc[valid_indexs]
+
+    del X, X_meta, y, y_aux
+    gc.collect()
+
+    train_dataset = JigsawDataset(
+        X=X_train,
+        X_meta=X_train_meta,
+        y=y_train,
+        y_aux=y_train_aux
+    )
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=Config.batch_size,
+        shuffle=True,
+        num_workers=8
+    )
+
+    valid_dataset = JigsawDataset(
+        X=X_valid,
+        X_meta=X_valid_meta,
+        y=y_valid,
+        y_aux=y_valid_aux
+    )
+
+    valid_loader = DataLoader(
+        valid_dataset,
+        batch_size=Config.batch_size,
+        shuffle=False,
+        num_workers=8
+    )
+
+    return train_loader, valid_loader, valid_df, loss_weight
+

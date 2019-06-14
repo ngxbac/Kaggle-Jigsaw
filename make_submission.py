@@ -9,7 +9,7 @@ from apex import amp
 from tqdm import *
 
 from config import Config
-from models import BertForTokenClassificationMultiOutput
+from models import BertForTokenClassificationMultiOutput, GPT2ClassificationMultioutput
 from pytorch_pretrained_bert import BertAdam
 from torch.utils.data import TensorDataset
 from sklearn.model_selection import train_test_split
@@ -23,19 +23,23 @@ device = torch.device('cuda')
 if __name__ == '__main__':
 
     seed = 6037
-    depth = 11
+    depth = 12
     maxlen = 220
-    batch_size = 128
-    accumulation_steps = 1
+    batch_size = 64
+    accumulation_steps = 2
+    model_name = "gpt2"
 
     config.seed = seed
     config.max_sequence_length = maxlen
     config.batch_size = batch_size
     config.accumulation_steps = accumulation_steps
     config.bert_weight = f"../bert_weight/uncased_L-{depth}_H-768_A-12/"
-    config.features = f"../bert_features_{maxlen}/"
+    if model_name == 'bert':
+        config.features = f"../bert_features_{maxlen}/"
+    else:
+        config.features = f"../features_{maxlen}_gpt/"
     config.experiment = f"{depth}layers"
-    config.checkpoint = f"{config.logdir}/{config.today}/{config.experiment}_" \
+    config.checkpoint = f"{config.logdir}/{config.today}/{model_name}_{config.experiment}_" \
                         f"{config.batch_size}bs_{config.accumulation_steps}accum_{config.seed}seed_{config.max_sequence_length}/"
 
     print_config(config)
@@ -44,11 +48,23 @@ if __name__ == '__main__':
     X_meta = np.load(os.path.join(config.features, 'meta_features_test.npy'))
     test_df = pd.read_csv(os.path.join(config.data_dir, "test.csv"))
 
-    model = BertForTokenClassificationMultiOutput.from_pretrained(
-        config.bert_weight,
-        cache_dir=None,
-        num_aux_labels=config.n_aux_targets
-    )
+    # Model and optimizer
+    if model_name == 'bert':
+        print("BERT MODEL")
+        model = BertForTokenClassificationMultiOutput.from_pretrained(
+            config.bert_weight,
+            cache_dir=None,
+            num_aux_labels=config.n_aux_targets
+        )
+    elif model_name == 'gpt2':
+        print("GPT2 MODEL")
+        model = GPT2ClassificationMultioutput.from_pretrained(
+            config.gpt2_weight,
+            cache_dir=None,
+            num_aux_labels=config.n_aux_targets
+        )
+    else:
+        raise ("Model is not implemented")
 
     state_dict = torch.load(os.path.join(config.checkpoint, "checkpoints/best.pth"))["model_state_dict"]
     new_state_dict = {}
@@ -78,4 +94,4 @@ if __name__ == '__main__':
         'prediction': valid_preds
     })
     os.makedirs(f'./submission/{config.today}/', exist_ok=True)
-    submission.to_csv(f'./submission/{config.today}/{config.experiment}_"{config.batch_size}bs_{config.accumulation_steps}accum_{config.seed}seed_{config.max_sequence_length}.csv', index=False)
+    submission.to_csv(f'./submission/{config.today}/{model_name}_{config.experiment}_{config.batch_size}bs_{config.accumulation_steps}accum_{config.seed}seed_{config.max_sequence_length}.csv', index=False)

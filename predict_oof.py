@@ -22,14 +22,12 @@ device = torch.device('cuda')
 
 if __name__ == '__main__':
 
-    seed = 2106
-
     for fold in range(5):
+        seed = 2411 + fold
         depth = 11
         maxlen = 300
-        batch_size = 128
-        accumulation_steps=1
-        seed += fold
+        batch_size = 32
+        accumulation_steps = 4
 
         config.seed = seed
         config.max_sequence_length = maxlen
@@ -43,9 +41,12 @@ if __name__ == '__main__':
 
         print_config(config)
 
-        X = np.load(os.path.join(config.features, 'sequence_test.npy'))
-        X_meta = np.load(os.path.join(config.features, 'meta_features_test.npy'))
-        test_df = pd.read_csv(os.path.join(config.data_dir, "test.csv"))
+        X = np.load(os.path.join(config.features, 'sequence_train.npy'))
+        X_meta = np.load(os.path.join(config.features, 'meta_features_train.npy'))
+
+        valid_indexs = np.load(f'./kfold/valid_{fold}.npy')
+        X = X[valid_indexs]
+        X_meta = X_meta[valid_indexs]
 
         model = BertForTokenClassificationMultiOutput.from_pretrained(
             config.bert_weight,
@@ -54,10 +55,7 @@ if __name__ == '__main__':
         )
 
         state_dict = torch.load(os.path.join(config.checkpoint, "checkpoints/best.pth"))["model_state_dict"]
-        new_state_dict = {}
-        for k, v in state_dict.items():
-            new_state_dict[k] = v
-        model.load_state_dict(new_state_dict)
+        model.load_state_dict(state_dict)
         model = model.to(device)
 
         model = torch.nn.DataParallel(model)
@@ -66,21 +64,19 @@ if __name__ == '__main__':
             param.requires_grad = False
 
         model.eval()
-        valid_preds = np.zeros((len(X)))
+        valid_preds = []
         valid = torch.utils.data.TensorDataset(torch.tensor(X, dtype=torch.long),
                                                torch.tensor(X_meta, dtype=torch.float))
 
-        valid_loader = torch.utils.data.DataLoader(valid, batch_size=32, shuffle=False, num_workers=4)
+        valid_loader = torch.utils.data.DataLoader(valid, batch_size=128, shuffle=False, num_workers=8)
 
-        tk0 = tqdm(valid_loader, total=len(valid_loader))
-        for i, (x_batch, added_fts) in enumerate(tk0):
-            pred = model(x_batch.to(device), features=added_fts.to(device), attention_mask=(x_batch > 0).to(device), labels=None)
-            valid_preds[i * 32: (i + 1) * 32] = pred[:, 0].detach().cpu().squeeze().numpy()
+        with torch.no_grad():
+            tk0 = tqdm(valid_loader, total=len(valid_loader))
+            for i, (x_batch, added_fts) in enumerate(tk0):
+                pred = model(x_batch.to(device), features=added_fts.to(device), attention_mask=(x_batch > 0).to(device), labels=None)
+                pred[:, 0] = torch.sigmoid(pred[:, 0])
+                valid_preds.append(pred.detach().cpu().squeeze().numpy())
 
-        valid_preds = torch.sigmoid(torch.tensor(valid_preds)).numpy().ravel()
-        submission = pd.DataFrame.from_dict({
-            'id': test_df['id'],
-            'prediction': valid_preds
-        })
-        os.makedirs(f'./submission/{config.today}/kfold/', exist_ok=True)
-        submission.to_csv(f'./submission/{config.today}/kfold/{config.experiment}_{config.batch_size}bs_{config.accumulation_steps}accum_{config.seed}seed_{config.max_sequence_length}_{fold}.csv', index=False)
+        valid_preds = np.concatenate(valid_preds, axis=0)
+        os.makedirs(f'./oofs/{config.experiment}_{config.batch_size}bs_{config.accumulation_steps}accum_{config.max_sequence_length}/', exist_ok=True)
+        np.save(f'./oofs/{config.experiment}_{config.batch_size}bs_{config.accumulation_steps}accum_{config.max_sequence_length}/fold_{fold}.npy', valid_preds)

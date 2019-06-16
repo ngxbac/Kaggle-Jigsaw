@@ -1,5 +1,5 @@
 from models import BertForTokenClassificationMultiOutput, GPT2ClassificationMultioutput
-from pytorch_pretrained_bert import BertAdam
+from pytorch_pretrained_bert import BertAdam, OpenAIAdam
 import click
 
 from dataset import get_data_loaders
@@ -36,7 +36,10 @@ def train(
     config.max_sequence_length = maxlen
     config.batch_size = batch_size
     config.accumulation_steps = accumulation_steps
-    config.bert_weight = f"../bert_weight/uncased_L-{depth}_H-768_A-12/"
+    if depth != 24:
+        config.bert_weight = f"../bert_weight/uncased_L-{depth}_H-768_A-12/"
+    else:
+        config.bert_weight = f"../bert_weight/uncased_L-{depth}_H-1024_A-16/"
     if model_name == 'bert':
         config.features = f"../bert_features_{maxlen}/"
     else:
@@ -70,6 +73,22 @@ def train(
             cache_dir=None,
             num_aux_labels=config.n_aux_targets
         )
+
+        param_optimizer = list(model.named_parameters())
+        no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+        optimizer_grouped_parameters = [
+            {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
+            {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+        ]
+        num_train_optimization_steps = np.ceil(
+            len(train_loader.dataset) / config.batch_size / config.accumulation_steps) * config.epochs
+        optimizer = BertAdam(
+            optimizer_grouped_parameters,
+            lr=config.lr,
+            warmup=0.01,
+            t_total=num_train_optimization_steps
+        )
+
     elif model_name == 'gpt2':
         print("GPT2 MODEL")
         model = GPT2ClassificationMultioutput.from_pretrained(
@@ -77,23 +96,23 @@ def train(
             cache_dir=None,
             num_aux_labels=config.n_aux_targets
         )
+
+        param_optimizer = list(model.named_parameters())
+        no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+        optimizer_grouped_parameters = [
+            {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
+            {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+        ]
+        num_train_optimization_steps = np.ceil(
+            len(train_loader.dataset) / config.batch_size / config.accumulation_steps) * config.epochs
+        optimizer = OpenAIAdam(
+            optimizer_grouped_parameters,
+            lr=config.lr,
+            warmup=0.01,
+            t_total=num_train_optimization_steps
+        )
     else:
         raise ("Model is not implemented")
-
-    param_optimizer = list(model.named_parameters())
-    no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
-    optimizer_grouped_parameters = [
-        {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
-        {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
-    ]
-    num_train_optimization_steps = np.ceil(
-        len(train_loader.dataset) / config.batch_size / config.accumulation_steps) * config.epochs
-    optimizer = BertAdam(
-        optimizer_grouped_parameters,
-        lr=config.lr,
-        warmup=0.01,
-        t_total=num_train_optimization_steps
-    )
 
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
 

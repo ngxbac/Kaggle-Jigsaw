@@ -23,17 +23,20 @@ device = torch.device('cuda')
 if __name__ == '__main__':
 
     seed = 6037
-    depth = 12
-    maxlen = 220
-    batch_size = 64
-    accumulation_steps = 2
-    model_name = "gpt2"
+    depth = 24
+    maxlen = 300
+    batch_size = 32
+    accumulation_steps = 4
+    model_name = "bert"
 
     config.seed = seed
     config.max_sequence_length = maxlen
     config.batch_size = batch_size
     config.accumulation_steps = accumulation_steps
-    config.bert_weight = f"../bert_weight/uncased_L-{depth}_H-768_A-12/"
+    if depth != 24:
+        config.bert_weight = f"../bert_weight/uncased_L-{depth}_H-768_A-12/"
+    else:
+        config.bert_weight = f"../bert_weight/uncased_L-{depth}_H-1024_A-16/"
     if model_name == 'bert':
         config.features = f"../bert_features_{maxlen}/"
     else:
@@ -72,6 +75,8 @@ if __name__ == '__main__':
         new_state_dict[k] = v
     model.load_state_dict(new_state_dict)
     model = model.to(device)
+
+    model = torch.nn.DataParallel(model)
 
     for param in model.parameters():
         param.requires_grad = False

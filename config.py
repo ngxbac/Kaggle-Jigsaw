@@ -2,7 +2,7 @@
 class Config:
 
     def __init__(self):
-        self.today = "190612"
+        self.today = "190615"
         self.logdir = "/raid/bac/kaggle/logs/jigsaw/"
         self.experiment = ""
         self.max_sequence_length = 220

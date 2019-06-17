@@ -2,7 +2,7 @@
 class Config:
 
     def __init__(self):
-        self.today = "190616_mean"
+        self.today = "190617_test"
         self.logdir = "/raid/bac/kaggle/logs/jigsaw/"
         self.experiment = ""
         self.max_sequence_length = 220
@@ -27,6 +27,7 @@ class Config:
         ]
 
         self.use_bug = False
+        self.resume = True
 
 
 def print_config(Config):

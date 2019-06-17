@@ -88,8 +88,18 @@ def process_components(
         model = torch.nn.DataParallel(model)
 
     model = model.to(device)
+    # criterion = criterion.to(device)
+    # optimizer = optimizer.to(device)
+    # scheduler = scheduler.to(device)
 
     return model, criterion, optimizer, scheduler, device
+
+
+def trim_tensors(tsrs):
+    max_len = torch.max(torch.sum((tsrs != 0), 1))
+    if max_len > 2:
+        tsrs = tsrs[:, :max_len]
+    return tsrs
 
 
 class ModelRunner(SupervisedRunner):
@@ -120,7 +130,47 @@ class ModelRunner(SupervisedRunner):
 
         return model, criterion, optimizer, scheduler, device
 
+    def _run_loader(self, loader):
+        if loader.batch_sampler:
+            batch_size = loader.batch_sampler.batch_size
+        elif loader.sampler:
+            batch_size = loader.sampler.batch_size
+        else:
+            batch_size = loader.batch_size
+        self.state.batch_size = batch_size
+        self.state.step = (
+            self.state.step
+            or self.state.epoch * len(loader) * self.state.batch_size
+        )
+        # @TODO: remove time usage, use it under the hood
+        self.state.timer.reset()
+
+        self.state.timer.start("_timers/batch_time")
+        self.state.timer.start("_timers/data_time")
+
+        for i, batch in enumerate(loader):
+            batch = self._batch2device(batch, self.device)
+            self.state.timer.stop("_timers/data_time")
+
+            self._run_event("batch_start")
+
+            self.state.timer.start("_timers/model_time")
+            self._run_batch(batch)
+            self.state.timer.stop("_timers/model_time")
+
+            self.state.timer.stop("_timers/batch_time")
+            self._run_event("batch_end")
+
+            self.state.timer.reset()
+
+            if self._check_run and i >= 3:
+                break
+
+            self.state.timer.start("_timers/batch_time")
+            self.state.timer.start("_timers/data_time")
+
     def predict_batch(self, batch: Mapping[str, Any]):
+        # batch['X'] = trim_tensors(batch['X'])
         output = self.model(
             input_ids=batch['X'],
             features=batch['X_meta'],

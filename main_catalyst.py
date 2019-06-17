@@ -115,6 +115,30 @@ def train(
         raise ("Model is not implemented")
 
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
+    model = model.cuda()
+
+    from apex import amp
+    model, optimizer = amp.initialize(
+        model, optimizer, opt_level="O1")
+
+    # if distributed_rank > -1:
+    # from apex.parallel import DistributedDataParallel
+    # model = DistributedDataParallel(model)
+    model = torch.nn.DataParallel(model)
+
+    if config.resume:
+        checkpoint = torch.load(config.checkpoint + "/checkpoints/best.pth")
+        import pdb
+        pdb.set_trace()
+        new_state_dict = {}
+        old_state_dict = checkpoint['model_state_dict']
+        for k, v in old_state_dict.items():
+            new_state_dict["module." + k] = v
+        model.load_state_dict(new_state_dict)
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+        criterion.load_state_dict(checkpoint['criterion_state_dict'])
+        print("!!! Loaded checkpoint ", config.checkpoint + "/checkpoints/best.pth")
 
     identity_valid = valid_df[config.identity_columns].copy()
     target_valid = valid_df.target.values

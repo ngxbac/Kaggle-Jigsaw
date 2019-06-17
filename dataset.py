@@ -2,7 +2,9 @@ import pandas as pd
 import numpy as np
 import os
 import gc
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, BatchSampler, RandomSampler
+import torch
+
 
 
 class JigsawDataset(Dataset):
@@ -28,6 +30,44 @@ class JigsawDataset(Dataset):
             "y": y,
             "y_aux": y_aux
         }
+
+
+class LenMatchBatchSampler(BatchSampler):
+    def __iter__(self):
+
+        buckets = [[]] * 100
+        yielded = 0
+
+        for idx in self.sampler:
+            # import pdb
+            # pdb.set_trace()
+            count_zeros = np.sum(self.sampler.data_source[idx]["X"] == 0)
+            count_zeros = int(count_zeros / 128)
+            if len(buckets[count_zeros]) == 0:  buckets[count_zeros] = []
+
+            buckets[count_zeros].append(idx)
+
+            if len(buckets[count_zeros]) == self.batch_size:
+                batch = list(buckets[count_zeros])
+                yield batch
+                yielded += 1
+                buckets[count_zeros] = []
+
+        batch = []
+        leftover = [idx for bucket in buckets for idx in bucket]
+
+        for idx in leftover:
+            batch.append(idx)
+            if len(batch) == self.batch_size:
+                yielded += 1
+                yield batch
+                batch = []
+
+        if len(batch) > 0 and not self.drop_last:
+            yielded += 1
+            yield batch
+
+        assert len(self) == yielded, "produced an inccorect number of batches. expected %i, but yielded %i" %(len(self), yielded)
 
 
 def get_data_loaders(Config):
@@ -72,8 +112,12 @@ def get_data_loaders(Config):
         y_aux=y_train_aux
     )
 
+    ran_sampler = RandomSampler(train_dataset)
+    len_sampler = LenMatchBatchSampler(ran_sampler, batch_size=Config.batch_size, drop_last=False)
+
     train_loader = DataLoader(
         train_dataset,
+        # batch_sampler=len_sampler,
         batch_size=Config.batch_size,
         shuffle=True,
         num_workers=8
@@ -86,11 +130,15 @@ def get_data_loaders(Config):
         y_aux=y_valid_aux
     )
 
+    ran_sampler = RandomSampler(valid_dataset)
+    len_sampler = LenMatchBatchSampler(ran_sampler, batch_size=Config.batch_size, drop_last=False)
+
     valid_loader = DataLoader(
         valid_dataset,
+        # batch_sampler=len_sampler,
         batch_size=Config.batch_size,
         shuffle=False,
-        num_workers=8
+        num_workers=4
     )
 
     return train_loader, valid_loader, valid_df, loss_weight

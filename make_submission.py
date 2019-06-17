@@ -22,11 +22,11 @@ device = torch.device('cuda')
 
 if __name__ == '__main__':
 
-    seed = 6037
-    depth = 24
+    seed = 92784
+    depth = 12
     maxlen = 300
-    batch_size = 32
-    accumulation_steps = 4
+    batch_size = 128
+    accumulation_steps = 1
     model_name = "bert"
 
     config.seed = seed

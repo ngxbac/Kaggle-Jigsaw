@@ -2,14 +2,14 @@
 class Config:
 
     def __init__(self):
-        self.today = "190617_test"
+        self.today = "190624"
         self.logdir = "/raid/bac/kaggle/logs/jigsaw/"
         self.experiment = ""
         self.max_sequence_length = 220
         self.lr = 2e-5
         self.batch_size = 32
         self.accumulation_steps = 4
-        self.train_percent = 1.0
+        self.train_percent = 0.7
         self.valid_percent = 0.05
         self.seed = 94285
         self.epochs = 2
@@ -17,6 +17,7 @@ class Config:
         self.toxicity_column = 'target'
         self.bert_weight = "../bert_weight/uncased_L-11_H-768_A-12/"
         self.gpt2_weight = "../gpt2_weight/"
+        self.xlnet_weight = "../xlnet_weight/xlnet_cased_L-24_H-1024_A-16/"
         self.features = '../meta/'
         self.checkpoint = ""
         self.aux_columns = ['target', 'severe_toxicity', 'obscene', 'identity_attack', 'insult', 'threat']
@@ -26,8 +27,8 @@ class Config:
             'muslim', 'black', 'white', 'psychiatric_or_mental_illness'
         ]
 
-        self.use_bug = False
-        self.resume = True
+        self.use_bug = True
+        self.resume = False
 
 
 def print_config(Config):

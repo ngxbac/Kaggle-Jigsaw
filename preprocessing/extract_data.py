@@ -6,6 +6,7 @@ from tqdm import *
 import pickle
 from sklearn.preprocessing import StandardScaler
 from pytorch_pretrained_bert import BertTokenizer, GPT2Tokenizer
+from pytorch_pretrained_bert import XLNetTokenizer, XLNetForClassification, XLNetConfig
 
 
 @click.group()
@@ -25,6 +26,32 @@ def convert_lines(example, max_seq_length, tokenizer):
         one_token = tokenizer.convert_tokens_to_ids(["[CLS]"]+tokens_a+["[SEP]"])+[0] * (max_seq_length - len(tokens_a))
         all_tokens.append(one_token)
     return np.array(all_tokens)
+
+
+def convert_lines_xlnet(example, max_seq_length, tokenizer):
+    max_seq_length -= 2
+
+    all_tokens = []
+    all_mask = []
+
+    longer = 0
+    for text in tqdm(example):
+        tokens_a = tokenizer.tokenize(text)
+        if len(tokens_a) > max_seq_length:
+            head_tokens = list(tokens_a[: max_seq_length // 3])
+            tail_tokens = list(tokens_a[len(tokens_a) - max_seq_length + len(head_tokens):])
+
+            tokens_a = head_tokens + tail_tokens
+            longer += 1
+
+        one_token = tokenizer.convert_tokens_to_ids(["[CLS]"] + tokens_a + ["[SEP]"]) + [0] * (
+                    max_seq_length - len(tokens_a))
+        input_mask = [0] * len(tokens_a) + [1] * (max_seq_length - len(tokens_a))
+
+        all_tokens.append(one_token)
+        all_mask.append(input_mask)
+
+    return np.array(all_tokens), np.array(all_mask)
 
 
 # Converting the lines to opengpt format
@@ -110,6 +137,34 @@ def extract_data_gpt2(
 
     sequences = convert_lines_gpt2(df["comment_text"].fillna("DUMMY_VALUE"), max_sequence_length, tokenizer)
     np.save(os.path.join(output_path, f'sequence_{dataset}.npy'), sequences)
+
+
+@cli.command()
+@click.option('--model_path', type=str)
+@click.option('--csv_file', type=str)
+@click.option('--dataset', type=str)
+@click.option('--max_sequence_length', type=int)
+@click.option('--output_path', type=str)
+def extract_data_xlnet(
+    model_path,
+    csv_file,
+    dataset,
+    max_sequence_length,
+    output_path,
+):
+    os.makedirs(output_path, exist_ok=True)
+    df = pd.read_csv(csv_file)
+    tokenizer = XLNetTokenizer.from_pretrained(model_path, cache_dir=None)
+
+    # Make sure all comment_text values are strings
+    df['comment_text'] = df['comment_text'].astype(str)
+
+    # import pdb
+    # pdb.set_trace()
+
+    sequences, mask = convert_lines_xlnet(df["comment_text"].fillna("DUMMY_VALUE"), max_sequence_length, tokenizer)
+    np.save(os.path.join(output_path, f'sequence_{dataset}.npy'), sequences)
+    np.save(os.path.join(output_path, f'mask_{dataset}.npy'), mask)
 
 
 

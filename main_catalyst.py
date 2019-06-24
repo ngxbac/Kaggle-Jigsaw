@@ -1,4 +1,4 @@
-from models import BertForTokenClassificationMultiOutput, GPT2ClassificationMultioutput
+from models import *
 from pytorch_pretrained_bert import BertAdam, OpenAIAdam
 import click
 
@@ -42,8 +42,10 @@ def train(
         config.bert_weight = f"../bert_weight/uncased_L-{depth}_H-1024_A-16/"
     if model_name == 'bert':
         config.features = f"../bert_features_{maxlen}/"
-    else:
+    elif model_name == 'gpt2':
         config.features = f"../features_{maxlen}_gpt/"
+    else:
+        config.features = f"../features_{maxlen}_xlnet/"
     config.experiment = f"{depth}layers"
     config.checkpoint = f"{config.logdir}/{config.today}/{model_name}_{config.experiment}_" \
                         f"{config.batch_size}bs_{config.accumulation_steps}accum_{config.seed}seed_{config.max_sequence_length}/"
@@ -68,7 +70,7 @@ def train(
     # Model and optimizer
     if model_name == 'bert':
         print("BERT MODEL")
-        model = BertForTokenClassificationMultiOutput.from_pretrained(
+        model = BertForTokenClassificationMultiOutput2.from_pretrained(
             config.bert_weight,
             cache_dir=None,
             num_aux_labels=config.n_aux_targets
@@ -95,6 +97,27 @@ def train(
             config.gpt2_weight,
             cache_dir=None,
             num_aux_labels=config.n_aux_targets
+        )
+
+        param_optimizer = list(model.named_parameters())
+        no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+        optimizer_grouped_parameters = [
+            {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
+            {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+        ]
+        num_train_optimization_steps = np.ceil(
+            len(train_loader.dataset) / config.batch_size / config.accumulation_steps) * config.epochs
+        optimizer = OpenAIAdam(
+            optimizer_grouped_parameters,
+            lr=config.lr,
+            warmup=0.01,
+            t_total=num_train_optimization_steps
+        )
+    elif model_name == 'xlnet':
+        model = XLNetWithMultiOutput.from_pretrained(
+            config.xlnet_weight,
+            clf_dropout=0.4, n_class=6
+            # num_aux_labels=config.n_aux_targets
         )
 
         param_optimizer = list(model.named_parameters())
@@ -147,6 +170,11 @@ def train(
         target=target_valid
     )
 
+    checkpoint_callback = IterationCheckpointCallback(
+        save_n_last=2000,
+        num_iters=10000,
+    )
+
     # model runner
     runner = ModelRunner()
 
@@ -163,7 +191,7 @@ def train(
         num_epochs=config.epochs,
         verbose=True,
         fp16={"opt_level": "O1"},
-        callbacks=[auc_callback]
+        callbacks=[auc_callback, checkpoint_callback]
     )
 
 

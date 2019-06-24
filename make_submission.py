@@ -9,7 +9,7 @@ from apex import amp
 from tqdm import *
 
 from config import Config
-from models import BertForTokenClassificationMultiOutput, GPT2ClassificationMultioutput
+from models import *
 from pytorch_pretrained_bert import BertAdam
 from torch.utils.data import TensorDataset
 from sklearn.model_selection import train_test_split
@@ -22,12 +22,12 @@ device = torch.device('cuda')
 
 if __name__ == '__main__':
 
-    seed = 23759
-    depth = 11
-    maxlen = 300
-    batch_size = 64
-    accumulation_steps = 2
-    model_name = "bert"
+    seed = 9374
+    depth = 16
+    maxlen = 220
+    batch_size = 16
+    accumulation_steps = 8
+    model_name = "xlnet"
 
     config.seed = seed
     config.max_sequence_length = maxlen
@@ -39,8 +39,10 @@ if __name__ == '__main__':
         config.bert_weight = f"../bert_weight/uncased_L-{depth}_H-1024_A-16/"
     if model_name == 'bert':
         config.features = f"../bert_features_{maxlen}/"
-    else:
+    elif model_name == 'gpt2':
         config.features = f"../features_{maxlen}_gpt/"
+    else:
+        config.features = f"../features_{maxlen}_xlnet/"
     config.experiment = f"{depth}layers"
     config.checkpoint = f"{config.logdir}/{config.today}/{model_name}_{config.experiment}_" \
                         f"{config.batch_size}bs_{config.accumulation_steps}accum_{config.seed}seed_{config.max_sequence_length}/"
@@ -54,7 +56,7 @@ if __name__ == '__main__':
     # Model and optimizer
     if model_name == 'bert':
         print("BERT MODEL")
-        model = BertForTokenClassificationMultiOutput.from_pretrained(
+        model = BertForTokenClassificationMultiOutput2.from_pretrained(
             config.bert_weight,
             cache_dir=None,
             num_aux_labels=config.n_aux_targets
@@ -66,10 +68,16 @@ if __name__ == '__main__':
             cache_dir=None,
             num_aux_labels=config.n_aux_targets
         )
+    elif model_name == 'xlnet':
+        model = XLNetWithMultiOutput.from_pretrained(
+            config.xlnet_weight,
+            clf_dropout=0.4, n_class=6
+            # num_aux_labels=config.n_aux_targets
+        )
     else:
         raise ("Model is not implemented")
 
-    state_dict = torch.load(os.path.join(config.checkpoint, "checkpoints/best.pth"))["model_state_dict"]
+    state_dict = torch.load(os.path.join(config.checkpoint, "checkpoints/train.epoch.0.iter.50000.pth"))["model_state_dict"]
     new_state_dict = {}
     for k, v in state_dict.items():
         new_state_dict[k] = v

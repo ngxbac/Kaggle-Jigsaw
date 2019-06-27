@@ -1,5 +1,7 @@
 # Kaggle-Jigsaw 
 
+Our solution is described in [here](https://www.kaggle.com/c/jigsaw-unintended-bias-in-toxicity-classification/discussion/97425#latest-562308)
+
 # Preprocessing 
 ### Extract data for BERT/GPT2/XLNET
 ```bash
